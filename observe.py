@@ -29,8 +29,3 @@ print(np.argsort(dtwrelation)[:2000])
 #need to find first few thousand elemnts which have lower values in dtwrelation matrix
 cidx=np.argsort(dtwrelation)[:2000]
 np.savetxt('cidx.csv',cidx,delimiter=',')
-# print(formatted_time_series.shape)
-#
-# dtwrelation=cdist(formatted_time_series[:100],formatted_time_series[:100])
-#
-# print(dtwrelation)
