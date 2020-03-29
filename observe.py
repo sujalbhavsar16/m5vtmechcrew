@@ -3,8 +3,11 @@ import numpy as np
 from tslearn.utils import to_time_series_dataset
 from tslearn.metrics import cdist_dtw
 from scipy.spatial.distance import cdist
+import os
 
-sale=pd.read_csv('sales_train_validation.csv')
+a='Data'
+b='sales_train_validation.csv'
+sale=pd.read_csv(os.path.join(a,b))
 print(sale.columns)
 
 lowlevelsale=sale.drop(columns=['id','item_id','dept_id','cat_id','store_id','state_id'])
@@ -28,4 +31,4 @@ print(np.argsort(dtwrelation)[:2000])
 
 #need to find first few thousand elemnts which have lower values in dtwrelation matrix
 cidx=np.argsort(dtwrelation)[:2000]
-np.savetxt('cidx.csv',cidx,delimiter=',')
+# np.savetxt('cidx.csv',cidx,delimiter=',')
