@@ -86,56 +86,80 @@ for col_name, col_fit in CAL_DTYPES.items():
 
 
 new_store_level=store_level_final.drop(['d','date'],axis=1)
-mw=5
+rmse = []
+mape = []
+for mw in [10,15,20,30,35]:
 
-rmse=[]
-mape=[]
-# model prediction with explanatory variables
-nsl_sts=series_to_supervised(new_store_level,5,1)
-nsl_sts=nsl_sts.dropna(axis=0)
 
-t_column=[i for i in nsl_sts.columns if '(t)' in i]+['CA_1(t-5)','CA_1(t-4)','CA_1(t-3)','CA_1(t-2)','CA_1(t-1)']
-exo_column=list(set(list(nsl_sts.columns))-set(t_column))
-input_column=['CA_1(t-5)','CA_1(t-4)','CA_1(t-3)','CA_1(t-2)','CA_1(t-1)']
-output_column='CA_1(t)'
-x=nsl_sts[input_column].values.reshape(df.shape[0]-mw,mw,1)              #changed 1 to 0
-y=nsl_sts[output_column].values.reshape(df.shape[0]-mw,1,1)
-e=nsl_sts[exo_column].values.reshape(df.shape[0]-mw,mw,12)
-num_samples, time_steps, input_dim, output_dim,exo = df.shape[0]-mw, mw, 1, 1,12
-#nbeats code
+    # model prediction with explanatory variables
+    nsl_sts=series_to_supervised(new_store_level,mw,1)
+    nsl_sts=nsl_sts.dropna(axis=0)
 
-model = NBeatsNet(exo_dim=exo,backcast_length=time_steps, forecast_length=output_dim,stack_types=(NBeatsNet.GENERIC_BLOCK, NBeatsNet.GENERIC_BLOCK), nb_blocks_per_stack=2,thetas_dim=(4, 4), share_weights_in_stack=True, hidden_layer_units=64)
-model.compile_model(loss='mae', learning_rate=1e-5)
-c = num_samples // 10
-x_train, y_train, x_test, y_test,e_train,e_test = x[c:], y[c:], x[:c], y[:c],e[c:],e[:c]
-model.fit([x_train,e_train], y_train, validation_data=([x_test,e_test], y_test), epochs=25, batch_size=128)
-# Save the model for later.
-model.save('n_beats_model.h5')
+    t_column=[i for i in nsl_sts.columns if '(t)' in i]+[i for i in nsl_sts.columns if 'CA_1' in i]
+    exo_column=list(set(list(nsl_sts.columns))-set(t_column))
 
-# Predict on the testing set.
-predictions = model.predict([x_test,e_test])
-print(predictions.shape)
+    output_column='CA_1(t)'
+    input_column=list(set([i for i in nsl_sts.columns if 'CA_1' in i])-set(['CA_1(t)']))
+    x=nsl_sts[input_column].values.reshape(df.shape[0]-mw,mw,1)              #changed 1 to 0
+    y=nsl_sts[output_column].values.reshape(df.shape[0]-mw,1,1)
+    e=nsl_sts[exo_column].values.reshape(df.shape[0]-mw,mw,12)
+    num_samples, time_steps, input_dim, output_dim,exo = df.shape[0]-mw, mw, 1, 1,12
+    #nbeats code
 
-# Load the model.
-# model2 = NBeatsNet.load('n_beats_model.h5')
-#
-# predictions2 = model2.predict([x_test,e_test])
-# np.testing.assert_almost_equal(predictions, predictions2)
+    model = NBeatsNet(exo_dim=exo,backcast_length=time_steps, forecast_length=output_dim,stack_types=(NBeatsNet.GENERIC_BLOCK, NBeatsNet.GENERIC_BLOCK), nb_blocks_per_stack=2,thetas_dim=(4, 4), share_weights_in_stack=True, hidden_layer_units=64)
+    model.compile_model(loss='mae', learning_rate=1e-5)
+    c = num_samples // 10
+    x_train, y_train, x_test, y_test,e_train,e_test = x[c:], y[c:], x[:c], y[:c],e[c:],e[:c]
+    model.fit([x_train,e_train], y_train, validation_data=([x_test,e_test], y_test), epochs=800, batch_size=128)
+    # Save the model for later.
+    model.save('n_beats_model.h5')
 
-rmse.append(LA.norm(predictions.ravel()-y_test[:,0,0],2))
-mape.append(mean_absolute_percentage_error(predictions.ravel(),y_test[:,0,0]))
+    # Predict on the testing set.
+    predictions = model.predict([x_test,e_test])
+    print(predictions.shape)
 
-fig,ax=plt.subplots()
-ax.plot(predictions.ravel(),linestyle='--',label='prediction')
-ax.plot(y_test[:,0,0],label='target')
-ax.legend()
-plt.show()
+    # Load the model.
+    # model2 = NBeatsNet.load('n_beats_model.h5')
+    #
+    # predictions2 = model2.predict([x_test,e_test])
+    # np.testing.assert_almost_equal(predictions, predictions2)
+
+    rmse.append(LA.norm(predictions.ravel()-y_test[:,0,0],2))
+    mape.append(mean_absolute_percentage_error(predictions.ravel(),y_test[:,0,0]))
+
+    fig,ax=plt.subplots()
+    ax.plot(predictions.ravel(),linestyle='--',label='prediction')
+    ax.plot(y_test[:,0,0],label='target')
+    ax.legend()
+    ax.set_title('with explanatory variable on tr= %f'%mw)
+    fig.savefig('Fig/nbeat_level3_1_tr%f.jpg'%mw)
+
+
+# plt.show()
 #....................................activate from here............................
 
+erpd=pd.DataFrame({'RMSE':rmse,'MAPE':mape,'tr':[10,15,20,30,35]})
+erpd.set_index('tr')
+erpd.to_csv('Results/nbeat_level3_1.csv')
 
-# rmse=[]
-# mape=[]
-# for mw in [10,15,20,25]:
+fig2,ax1=plt.subplots()
+ax1.plot([10,15,20,30,35],rmse,marker='o',label='RMSE',color='tab:orange')
+ax1.tick_params(axis='y', labelcolor='tab:orange')
+ax1.set_xlabel('Training look-back window')
+ax1.set_ylabel('RMSE', color='tab:orange')
+ax2 = ax1.twinx()
+ax2.plot([10,15,20,30,35],mape,marker='o',label='MAPE',color='blue')
+ax2.set_ylabel('MAPE',color='blue')
+ax2.tick_params(axis='y', labelcolor='blue')
+# ax.legend()
+fig.savefig('fig/nbeat_level3_1_er.jpg')
+
+#without explanatory variables
+# data = pd.read_csv(os.path.join(path1,path2), delimiter=",")
+# df = levels.level_3(data)
+# rmse2=[]
+# mape2=[]
+# for mw in [5]:
 #
 #     newdf=series_to_supervised(pd.DataFrame(df.T['CA_1']),mw,1)
 #     newdf=newdf.dropna(axis=0)
@@ -157,8 +181,8 @@ plt.show()
 #     model.compile_model(loss='mae', learning_rate=1e-5)
 #
 #     # Definition of the data. The problem to solve is to find f such as | f(x) - y | -> 0.
-#     x = np.random.uniform(size=(num_samples, time_steps, input_dim))
-#     y = np.mean(x, axis=1, keepdims=True)
+#     # x = np.random.uniform(size=(num_samples, time_steps, input_dim))
+#     # y = np.mean(x, axis=1, keepdims=True)
 #
 #     # Split data into training and testing datasets.
 #     c = num_samples // 10
@@ -175,20 +199,21 @@ plt.show()
 #     print(predictions.shape)
 #
 #     # Load the model.
-#     model2 = NBeatsNet.load('n_beats_model.h5')
+#     # model2 = NBeatsNet.load('n_beats_model.h5')
 #
-#     predictions2 = model2.predict(x_test)
-#     np.testing.assert_almost_equal(predictions, predictions2)
+#     # predictions2 = model2.predict(x_test)
+#     # np.testing.assert_almost_equal(predictions, predictions2)
 #
-#     rmse.append(LA.norm(predictions.ravel()-y_test[:,0,0],2))
-#     mape.append(mean_absolute_percentage_error(predictions.ravel(),y_test[:,0,0]))
+#     rmse2.append(LA.norm(predictions.ravel()-y_test[:,0,0],2))
+#     mape2.append(mean_absolute_percentage_error(predictions.ravel(),y_test[:,0,0]))
 #
 #
-# # fig,ax=plt.subplots()
-# # ax.plot(predictions.ravel(),linestyle='--',label='prediction')
-# # ax.plot(y_test[:,0,0],label='target')
-# # ax.legend()
-# # plt.show()
+# fig,ax=plt.subplots()
+# ax.plot(predictions.ravel(),linestyle='--',label='prediction')
+# ax.plot(y_test[:,0,0],label='target')
+# ax.set_title('without explanatory variable')
+# ax.legend()
+# plt.show()
 #
 #
 # fig,ax=plt.subplots()
