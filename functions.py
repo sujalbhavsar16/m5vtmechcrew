@@ -32,3 +32,34 @@ def mean_absolute_percentage_error(y_true, y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
 
+
+
+def RMSSE(y_pred,y_test,y):
+    y_test,y = y_test.values,y.values
+    n = np.mean(np.square(y_test-y_pred))
+    d = np.mean(np.square(y[1:]- y[0:y.shape[0]-1]))
+    return np.sqrt(n/d)
+
+
+
+
+def test_stationarity(ts,window):
+    rolling_mean = ts.rolling(window = window,center=False).mean()
+    
+    rolling_std = ts.rolling(window = window,center=False).std()
+    
+    
+    
+    orignal = plt.plot(ts, color = 'blue', label = 'Original')
+    mean = plt.plot(rolling_mean, color = 'red', label = 'Rolling Mean')
+    std = plt.plot(rolling_std,color = 'black', label = 'Rolling Std')
+    plt.legend()
+    plt.show()
+    plt.close()
+    
+    dftest = adfuller(ts)
+    test_output= pd.DataFrame(dftest[0:4],index = ['Test Statistic','p-value','# Lags Used','Number of Observations Used'],columns=['Value'])
+
+    for key,value in dftest[4].items():
+        test_output = pd.concat([test_output,pd.DataFrame([value],index=[f'Critical Value at {key}'],columns=['Value'])])
+    print(test_output)
