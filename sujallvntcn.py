@@ -1,68 +1,61 @@
 from tensorflow.keras.layers import Dense
 from tensorflow.keras import Input, Model
-
+from functions import series_to_supervised
+from functions import mean_absolute_percentage_error
+from functions import RMSSE
+from functions import get_max_node
 from tcn import TCN, tcn_full_summary
 import import_ipynb
 import LevelsCreater as lc
 import pandas as pd
 import os
+from numpy import linalg as LA
 
-def series_to_supervised(data, n_in=1, n_out=1, dropnan=False):
-    n_vars = 1 if type(data) is list else data.shape[1]
-    cols = pd.DataFrame()
-    names = list()
-    for i in range(n_in, 0, -1):
-        df = pd.DataFrame()
-        names = list()
-        df = data.shift(i)
-        names += [('%s(t-%d)' % (data.columns[j], i)) for j in range(n_vars)]
-        df.columns = names
-        cols = pd.concat([cols, df], axis=1, sort=False)
-    for i in range(0, n_out):
-        df = pd.DataFrame()
-        names = list()
-        df = data.shift(-i)
-        if i == 0:
-            names += [('%s(t)' % (data.columns[j])) for j in range(n_vars)]
-        else:
-            names += [('%s(t+%d)' % (data.columns[j], i)) for j in range(n_vars)]
+def s_nbeat(level=1,exo=False,node=0,n_in=30,n_out=1,batch_size=128,optimizer='adam', loss='mse',test=200,epochs=100):
+    max_node=get_max_node(level)
+    if node>(max_node-1):
+        print(f'Exceed the limit: Maximum number of node for level {level} is {max_node}')
+        return None,None,None
+    levels = lc.LevelsCreater()
+    path1 = 'Data'
+    path2 = 'sales_train_validation.csv'
+    sale = pd.read_csv(os.path.join(path1, path2), delimiter=",")
+    if exo==False:
+        df = levels.get_level(sale,level)
 
-        df.columns = names
-        cols = pd.concat([cols, df], axis=1, sort=False)
-    if dropnan:
-        cols.dropna(inplace=True)
-    return cols
+        df = df.transpose()
+        df = pd.DataFrame(df[df.columns[node]])
+    # df['d'] = df.index
+    #
+    # path3 = 'calendar.csv'
+    # calender = pd.read_csv(os.path.join(path1, path3))
+    # store_level_final = df.merge(calender, on='d')
+    # new_store_level=store_level_final.drop(['d','date'],axis=1)
+    # mw=30
+        nsl_sts=series_to_supervised(df,n_in,n_out,dropnan=True)
+        x=nsl_sts[nsl_sts.columns[:n_in]].values
+        y=nsl_sts[nsl_sts.columns[-n_out]].values
+        x_reshape=x.reshape((x.shape[0],x.shape[1],1))
+        y_reshape=y.reshape((y.shape[0],1))
 
+        batch_size, timesteps, input_dim = batch_size, n_in, n_out
+        i = Input(batch_shape=(batch_size, timesteps, input_dim))
 
-def mean_absolute_percentage_error(y_true, y_pred):
-    y_true, y_pred = np.array(y_true), np.array(y_pred)
-    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+        o = TCN(return_sequences=False)(i)  # The TCN layers are here.
+        o = Dense(1)(o)
 
+        m = Model(inputs=[i], outputs=[o])
+        m.compile(optimizer, loss)
 
-levels = lc.LevelsCreater()
+        tcn_full_summary(m, expand_residual_blocks=False)
+        c = test
+        x_train, y_train, x_test, y_test = x_reshape[:-c], y_reshape[:-c], x_reshape[-c:], y_reshape[-c:]
 
-path1 = 'Data'
-path2 = 'sales_train_validation.csv'
+        m.fit(x_train, y_train, epochs, validation_split=0.2)
 
-data = pd.read_csv(os.path.join(path1, path2), delimiter=",")
-df = levels.level_3(data)
-df = df.transpose()
-df = pd.DataFrame(df['CA_1'])
-# df['d'] = df.index
-#
-# path3 = 'calendar.csv'
-# calender = pd.read_csv(os.path.join(path1, path3))
-# store_level_final = df.merge(calender, on='d')
-# new_store_level=store_level_final.drop(['d','date'],axis=1)
-mw=30
-nsl_sts=series_to_supervised(df,mw,1,dropnan=True)
-x=nsl_sts[nsl_sts.columns[:-1]].values
-y=nsl_sts[nsl_sts.columns[-1]].values
+        y_pred_test=m.predict(x_test)
 
-x_reshape=x.reshape((x.shape[0],x.shape[1],1))
-y_reshape=y.reshape((y.shape[0],1))
-
-
+    return mean_absolute_percentage_error(y_pred_test,y_test),LA.norm(y_pred_test-y_test,2),RMSSE(y_pred_test,y_test,df.values)
 
 # CAL_DTYPES = {"event_name_1": "category", "event_name_2": "category", "event_type_1": "category",
 #               "event_type_2": "category", "weekday": "category", 'wm_yr_wk': 'int16', "wday": "int16",
@@ -82,28 +75,17 @@ y_reshape=y.reshape((y.shape[0],1))
 # nsl_sts=series_to_supervised(new_store_level,mw,1)
 
 
-batch_size, timesteps, input_dim = 128, 30, 1
 
-def get_x_y(size=1000):
-    import numpy as np
-    pos_indices = np.random.choice(size, size=int(size // 2), replace=False)
-    x_train = np.zeros(shape=(size, timesteps, 1))
-    y_train = np.zeros(shape=(size, 1))
-    x_train[pos_indices, 0] = 1.0
-    y_train[pos_indices, 0] = 1.0
-    return x_train, y_train
 
-i = Input(batch_shape=(batch_size, timesteps, input_dim))
+# def get_x_y(size=1000):
+#     import numpy as np
+#     pos_indices = np.random.choice(size, size=int(size // 2), replace=False)
+#     x_train = np.zeros(shape=(size, timesteps, 1))
+#     y_train = np.zeros(shape=(size, 1))
+#     x_train[pos_indices, 0] = 1.0
+#     y_train[pos_indices, 0] = 1.0
+#     return x_train, y_train
 
-o = TCN(return_sequences=False)(i)  # The TCN layers are here.
-o = Dense(1)(o)
+if __name__ == "__main__":
+    mape=s_nbeat(node=1)
 
-m = Model(inputs=[i], outputs=[o])
-m.compile(optimizer='adam', loss='mse')
-
-tcn_full_summary(m, expand_residual_blocks=False)
-
-c = 121
-x_train, y_train, x_test, y_test = x_reshape[:-c], y_reshape[:-c], x_reshape[-c:], y_reshape[-c:]
-
-m.fit(x_train, y_train, epochs=100, validation_split=0.2)
