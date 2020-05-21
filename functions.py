@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import LevelsCreater as lc
+import os
 
 def series_to_supervised(data, n_in=1, n_out=1, dropnan=False):
     n_vars = 1 if type(data) is list else data.shape[1]
@@ -63,3 +65,13 @@ def test_stationarity(ts,window):
     for key,value in dftest[4].items():
         test_output = pd.concat([test_output,pd.DataFrame([value],index=[f'Critical Value at {key}'],columns=['Value'])])
     print(test_output)
+
+
+def get_max_node(level):
+    levels = lc.LevelsCreater()
+    path1 = 'Data'
+    path2 = 'sales_train_validation.csv'
+    sale = pd.read_csv(os.path.join(path1, path2), delimiter=",")
+    df = levels.get_level(sale, level)
+    df = df.transpose()
+    return len(df.columns)
