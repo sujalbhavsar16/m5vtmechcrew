@@ -66,7 +66,8 @@ def s_tcn(level=1,exo=False,node=0,normalized=False,n_in=30,n_out=1,batch_size=1
                 batch_size, timesteps, input_dim = batch_size, n_in, n_out
                 i = Input(batch_shape=(batch_size, timesteps, input_dim))
 
-                o = TCN(return_sequences=False)(i)  # The TCN layers are here.
+                o = TCN(return_sequences=True)(i)  # The TCN layers are here.
+                o=TCN(return_sequences=False)(o)
                 o = Dense(1)(o)
 
 
@@ -132,6 +133,8 @@ def s_tcn(level=1,exo=False,node=0,normalized=False,n_in=30,n_out=1,batch_size=1
             ex = exovar.exovar()
             ts_level = lc.LevelsCreater().get_level(sale, level)
             salecal = ex.salecal(ts_level, calendar, node)
+            if level == 1:
+                salecal = salecal.rename(columns={salecal.columns[0]: 'zero'})
             res=seasonal_decompose(salecal[salecal.columns[0]].values, model='additive',period=1)
             res=[res.resid,res.seasonal,res.trend]
             ytot=[]
@@ -213,7 +216,8 @@ def s_tcn(level=1,exo=False,node=0,normalized=False,n_in=30,n_out=1,batch_size=1
             j = Input(batch_shape=(batch_size, exo_len, input_dim))
             # i=concatenate([i,j])
             o = TCN(return_sequences=False)(i)  # The TCN layers are here.
-            o = Dense(1)(o)
+            o = Dense(10)(o)
+            o=Dense(1)(o)
             r=Flatten()(j)
             p = Dense(1)(r)
 
@@ -271,7 +275,7 @@ def s_tcn(level=1,exo=False,node=0,normalized=False,n_in=30,n_out=1,batch_size=1
 #     return x_train, y_train
 
 if __name__ == "__main__":
-    mape,rmse,rmsse=s_tcn(level=6,node=0,normalized=True,decomposition=True,exo=True)
+    mape,rmse,rmsse=s_tcn(level=6,node=0,normalized=True,decomposition=True,exo=True,n_in=10)
     print('MAPE on testing set: %f' %mape)
     print('RMSE on testing set: %f' %rmse)
     print('RMSSE on testin set: %f'%rmsse)
