@@ -54,3 +54,4 @@ if __name__ == "__main__":
     level6 = levels.get_level(sale, 6)
     ex = ex.exovar()
     level6withexo=ex.salecal(level6, calendar, node=1)
+    print(level6withexo)

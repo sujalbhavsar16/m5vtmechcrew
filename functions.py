@@ -38,6 +38,7 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=False,parse=False):
             exo_columns = [i for i in cols.columns if '(t)' in i and data.columns[0] not in i]
             y_columsn = data.columns[0] + '(t)'
             look_back_columns = list(set([i for i in cols.columns if data.columns[0] in i]) - set(y_columsn))
+            look_back_columns.remove(y_columsn)
         return cols[look_back_columns],cols[y_columsn],cols[exo_columns]
 
 def mean_absolute_percentage_error(y_true, y_pred):
