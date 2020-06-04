@@ -242,7 +242,7 @@ def s_tcn(level=1,exo=False,node=0,normalized=False,n_in=30,n_out=1,batch_size=1
             m.fit([x_train,e_train], y_train, epochs, validation_split=0.2)
 
             y_pred_test = np.round(m.predict([x_test,e_test]))
-
+    m.save('n_tcn_models/n_beats_model_{:02}_{:02}.h5'.format(level, node))
     return mean_absolute_percentage_error(y_pred_test,y_test),LA.norm(y_pred_test-y_test,2),RMSSE(y_pred_test,y_test,df.values)
 
 # CAL_DTYPES = {"event_name_1": "category", "event_name_2": "category", "event_type_1": "category",

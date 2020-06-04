@@ -346,7 +346,7 @@ def s_nbeat(level=1,exo=False,node=0,normalized=False,n_in=30,n_out=1,batch_size
         predictions = model.predict([x_test, e_test])
         print(predictions.shape)
         print(y_test.shape)
-
+    model.save('n_beat_models/n_beats_model_{:02}_{:02}.h5'.format(level,node))
     return mean_absolute_percentage_error(predictions, y_test), LA.norm(predictions - y_test, 2,axis=0), RMSSE(predictions,
                                                                                                         y_test,
                                                                                                         df.values)

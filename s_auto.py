@@ -7,13 +7,18 @@ import time
 s_atuto=pd.DataFrame(index=['Nbeat','Ntcn'])
 case=1
 for level in np.arange(1,13):
-    for node in range(get_max_node(level)):
+    if level==10 or 11 or 12:
+        node_size=np.random.choice(range(get_max_node(level)),100)
+    else:
+        node_size=range(get_max_node(level))
+    for node in node_size:
         start=time.time()
         print(level,node)
         print('case:',case)
         _,_,rmsse_nbeat=s_nbeat(level=level,node=node,normalized=True,decomposition=True,exo=True,n_in=30,n_out=1)
         _,_,rmsse_ntcn=s_tcn(level=level,node=node,normalized=True,decomposition=True,exo=True,n_in=10,n_out=1)
         s_atuto[str(level)+'_'+str(node)]=[rmsse_nbeat,rmsse_ntcn]
+        s_atuto.to_csv('Data/s_auto.csv')
         case+=1
         end=time.time   ()
         ts=end-start
