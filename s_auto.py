@@ -7,10 +7,13 @@ import time
 s_atuto=pd.DataFrame(index=['Nbeat','Ntcn'])
 case=1
 for level in np.arange(1,13):
-    if level==10 or 11 or 12:
+
+    if level==10 or level==11 or level==12:
         node_size=np.random.choice(range(get_max_node(level)),100)
+        print('running')
     else:
-        node_size=range(get_max_node(level))
+        node_size=list(range(get_max_node(level)))
+    print('.....................................',len(node_size),'....................................')
     for node in node_size:
         start=time.time()
         print(level,node)
