@@ -61,6 +61,7 @@ sale = pd.read_csv(os.path.join(path1,path2), delimiter=",")
 class st_models:
   def __init__(self,ts,split = None,exog = None):
     self.ts= ts.astype("float64")
+    self.ts = ((self.ts).reset_index()).iloc[:,-1]
     self.split = split
     self.exog_ =exog
     if split!=None:
@@ -418,6 +419,7 @@ def train_st():
                   _,err = arima_model.arima_pred(order = (4,0,1),pretrained=False,plot=False)
                   order = (4,0,1)
 
+      
       preddf[str(i+1)+'_'+ str(j+1)] = [err]
       predorder[str(i+1)+'_'+ str(j+1)] = [order]
       print(order)
@@ -432,7 +434,7 @@ def train_st():
     en = time.time()
 
     print((en-st)/60)
-  preddf.to_csv("results/arima_pred.csv")
+    preddf.to_csv("results/arima_pred.csv")
   predorder.to_csv("results/arima_order.csv")
 
 train_st()
