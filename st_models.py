@@ -7,6 +7,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
+import random
 
 from statsmodels.tsa.stattools import acf,pacf
 from statsmodels.graphics.tsaplots import plot_acf,plot_pacf
@@ -45,7 +46,7 @@ from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
 import LevelsCreater as lc
 import exovar as ex
 
-
+ex = ex.exovar()
 path1 = os.path.join('Data')
 path2='sales_train_validation.csv'
 
@@ -57,7 +58,7 @@ path3 = 'calendar.csv'
 
 sale = pd.read_csv(os.path.join(path1,path2), delimiter=",")
 
-
+calendar = pd.read_csv(os.path.join(path1,path3), delimiter=",")
 
 class st_models:
   def __init__(self,ts,split = None,exog = None):
@@ -379,14 +380,17 @@ def train_st():
   preddf = pd.DataFrame([])
   predorder = pd.DataFrame([])
   levels = lc.LevelsCreater()
-  for i in range(12):
+  salecal = ex.salecal(levels.get_level(sale,1), calendar, 0)
+  exogs=salecal.iloc[:,3:]
+  for i in [11]:
     data =  levels.get_level(sale,i+1)
     st = time.time()
 
   
     n = len(data)
+    l = random.sample(range(0,n),100)
 
-    for j in range(n):
+    for j in l:
       ts = data.iloc[j,:]
       print(i,j)
       arima_model = st_models(ts,split=0.895)
@@ -424,6 +428,7 @@ def train_st():
       preddf[str(i+1)+'_'+ str(j+1)] = [err]
       predorder[str(i+1)+'_'+ str(j+1)] = [order]
       print(order)
+      preddf.to_csv("results/arima_pred.csv")
 
   
     print(f'level {i+1} finished')
@@ -435,7 +440,7 @@ def train_st():
     en = time.time()
 
     print((en-st)/60)
-    preddf.to_csv("results/arima_pred.csv")
+    
   predorder.to_csv("results/arima_order.csv")
 
 train_st()
