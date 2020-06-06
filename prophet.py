@@ -51,8 +51,8 @@ def RMSSE(y_pred,y_test,y):
     return np.sqrt(n/d)
 
 ex = ex.exovar()
-path1 = os.path.join('Data')
-path2='sales_train_validation.csv'
+path1 = os.path.join('Data2')
+path2='sales_train_evaluation.csv'
 
 
 
@@ -69,15 +69,16 @@ calendar = pd.read_csv(os.path.join(path1,path3), delimiter=",")
 def train_fbpro():
     preddf = pd.DataFrame([])
     levels = lc.LevelsCreater()
-    exogs = ex.salecal(sale,calendar,0).iloc[:,1:]
+    exogs = ex.calendar(calendar)
+    #print('exogs len =',len(exogs['event_name_1']),exogs)
     
     
-    for i in range(9):
+    for i in range(12):
         data =  levels.get_level(sale,i+1)
         st = time.time()
         n = len(data)
         
-        if i not in [10,11,12]:
+        if i not in [9,10,11]:
             nodes = list(range(n))
         else:
             nodes = random.sample(range(n),100)
@@ -87,16 +88,17 @@ def train_fbpro():
         for j in nodes:
             
             ts = data.iloc[j,:]
+            #print(len(ts))
             ts = pd.DataFrame(ts)
             ts = ts.rename(columns={ts.columns[0]:'y'})
             ts['ds'] = (calendar['date'].values)[:len(ts)]
-            ts['event_name_1'] = exogs['event_name_1'].values
-            ts['event_type_1'] = exogs['event_type_1'].values
-            ts['event_name_2'] = exogs['event_name_2'].values
-            ts['event_type_2'] = exogs['event_type_2'].values#print(ts)
+            ts['event_name_1'] = (exogs['event_name_1'].values)[:len(ts)]
+            ts['event_type_1'] = (exogs['event_type_1'].values)[:len(ts)]
+            ts['event_name_2'] = (exogs['event_name_2'].values)[:len(ts)]
+            ts['event_type_2'] = (exogs['event_type_2'].values)[:len(ts)]
 
-            #print(ts.shape)
-            ts_train = ts.iloc[:1813,:]
+            #print(np.sum(ts['event_name_1'].isna()))
+            ts_train = ts.iloc[:,:]
             
             m+=1
             
@@ -109,7 +111,7 @@ def train_fbpro():
             
             #print(ts_train.head())
             model.fit(ts_train)
-            future = model.make_future_dataframe(periods=100)
+            future = model.make_future_dataframe(periods=28)
             future['event_name_1'] = exogs['event_name_1']
             future['event_type_1'] = exogs['event_type_1']
             future['event_name_2'] = exogs['event_name_2']
@@ -118,14 +120,14 @@ def train_fbpro():
             y_pred = np.round(model.predict(future))
             #print(np.round(y_pred['yhat'].iloc[0]),type(np.round(y_pred['yhat'])))
    
-            err = RMSSE(np.round(y_pred['yhat'].iloc[1813:]),ts['y'].iloc[1813:],ts_train['y'])
+            #err = RMSSE(np.round(y_pred['yhat'].iloc[(len(ts)+1):]),ts['y'].iloc[(len(ts)+1):],ts_train['y'])
             
-            print('RMSSE =', err)
+            #print('RMSSE =', err)
             print('ts number:',i+1,j+1,', number ts trained:',m)
     
-            preddf[str(i+1)+'_'+ str(j+1)] = [err]
+            preddf[str(i+1)+'_'+ str(j+1)] = (y_pred['yhat'].iloc[(len(ts)):]).values
             
-            preddf.to_csv("results/fb_pred.csv")
+            preddf.to_csv("results/fb_predictions(10,11,12).csv")
             
         
         en = time.time()

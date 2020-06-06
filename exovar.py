@@ -45,9 +45,9 @@ if __name__ == "__main__":
     import os
     import LevelsCreater as lc
     import exovar as ex
-    path1 = 'Data'
+    path1 = 'Data2'
     path2 = 'calendar.csv'
-    path3 = 'sales_train_validation.csv'
+    path3 = 'sales_train_evaluation.csv'
     calendar = pd.read_csv(os.path.join(path1, path2))
     sale = pd.read_csv(os.path.join(path1, path3))
     levels = lc.LevelsCreater()
