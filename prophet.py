@@ -72,14 +72,20 @@ def train_fbpro():
     exogs = ex.salecal(sale,calendar,0).iloc[:,1:]
     
     
-    for i in [9,10,11]:
+    for i in range(9):
         data =  levels.get_level(sale,i+1)
         st = time.time()
         n = len(data)
+        
+        if i not in [10,11,12]:
+            nodes = list(range(n))
+        else:
+            nodes = random.sample(range(n),100)
        
-       
-        for j in random.sample(range(n),100):
-            print('ts number:',i+1,j+1)
+        m = 0
+        
+        for j in nodes:
+            
             ts = data.iloc[j,:]
             ts = pd.DataFrame(ts)
             ts = ts.rename(columns={ts.columns[0]:'y'})
@@ -91,7 +97,9 @@ def train_fbpro():
 
             #print(ts.shape)
             ts_train = ts.iloc[:1813,:]
-           
+            
+            m+=1
+            
             model = proph(daily_seasonality=True)
             model.add_country_holidays(country_name = 'US')
             model.add_regressor('event_name_1')
@@ -113,7 +121,7 @@ def train_fbpro():
             err = RMSSE(np.round(y_pred['yhat'].iloc[1813:]),ts['y'].iloc[1813:],ts_train['y'])
             
             print('RMSSE =', err)
-            
+            print('ts number:',i+1,j+1,', number ts trained:',m)
     
             preddf[str(i+1)+'_'+ str(j+1)] = [err]
             
