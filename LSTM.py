@@ -41,14 +41,27 @@ import exovar as ex
 from functions import series_to_supervised
 
 from fbprophet import Prophet as proph
-
+import tensorflow as tf
 import keras
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
+import time
 
+ex = ex.exovar()
+
+path1 = os.path.join('Data2')
+path2='sales_train_evaluation.csv'
+
+path3 = 'calendar.csv'
+
+sale = pd.read_csv(os.path.join(path1,path2), delimiter=",")
+
+calendar = pd.read_csv(os.path.join(path1,path3), delimiter=",")
+
+exogs = ex.calendar(calendar)
 
 def RMSSE(y_pred,y_test,y):
     y_pred = np.round(y_pred)
@@ -58,70 +71,113 @@ def RMSSE(y_pred,y_test,y):
     return np.sqrt(n/d)
 
 
+
+
+def lstm_model():
+    look_back=28
+    model = Sequential()   
+    model.add(LSTM(50, return_sequences=True))
+    model.add(LSTM(20))
+    model.add(Dense(look_back))
+    model.add(Dense(1))
+    model.compile(loss='mean_squared_error', optimizer='adam')
+    return model
+
+
 np.random.seed(0)
 
 
+def create_dataset(level,node,scaler):
+    levels = lc.LevelsCreater()
+    ts = levels.get_level(sale,level).iloc[node,:]
 
-ts = levels.get_level(sale,1).iloc[0,:]
-look_back = 28
-epochs = 3
-train_fraction = 0.985
-
-
-
-scaler = MinMaxScaler(feature_range=(0, 1))
-dataset = scaler.fit_transform(ts.values.reshape(-1, 1))
-
-train_size = int(len(dataset) * train_fraction)
-test_size = len(dataset) - train_size
+    look_back = 28
     
-ts_xy = series_to_supervised(pd.DataFrame(dataset.squeeze()),
+    train_fraction = 28
+
+    
+    dataset = scaler.fit_transform(ts.values.reshape(-1, 1))
+    #print(len(dataset))
+    
+    
+    ts_xy = series_to_supervised(pd.DataFrame(dataset.squeeze()),
                              look_back,dropnan=True)
+    
+    #print('tsxy',ts_xy.shape)
+    
+    train_size = int(len(ts_xy) - train_fraction)
+    test_size = len(ts_xy) - train_size
+    ts_x = ts_xy.iloc[:,:-1].values
+    ts_y = ts_xy.iloc[:,-1].values
+    trainX = ts_x[:train_size]
+    testX = ts_x[train_size:]
+    trainY = ts_y[:train_size]
+    testY = ts_y[train_size:]
+    trainX = np.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
+    testX = np.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
+    print('train x shape',trainX.shape)
+    return trainX,testX,trainY,testY
 
 
-
-ts_x = ts_xy.iloc[:,:-1].values
-
-ts_y = ts_xy.iloc[:,-1].values
-trainX = ts_x[:train_size]
-testX = ts_x[train_size:]
-
-trainY = ts_y[:train_size]
-testY = ts_y[train_size:]
-
-trainX = np.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
-testX = np.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
-
-#print(trainX.shape)
-
-#print(trainX.shape)
 batch_size = 1
-model = Sequential()
-  
- 
-model.add(LSTM(50, return_sequences=True))
-model.add(LSTM(20))
-model.add(Dense(look_back))
-model.add(Dense(1))
-model.compile(loss='mean_squared_error', optimizer='adam')
-  
-model.fit(trainX, trainY,epochs = 3, batch_size = 1, verbose = 2)
+
+def train_lstm():
+    preddf = pd.DataFrame([])
+    levels = lc.LevelsCreater()
+    exogs = ex.calendar(calendar)
+    prederr = pd.DataFrame([])
     
-trainPredict = model.predict(trainX)
-testPredict = model.predict(testX)
     
-trainPredict = scaler.inverse_transform(trainPredict)
-trainY = scaler.inverse_transform([trainY])
-testPredict = scaler.inverse_transform(testPredict)
-testY = scaler.inverse_transform([testY])
-  
-print(RMSSE(testPredict.squeeze(),
-      pd.Series(testY.squeeze()),pd.Series(trainY.squeeze())))
+    
+    for i in range(12):
+        data =  levels.get_level(sale,i+1)
+        st = time.time()
+        n = len(data)
+        
+        if i not in [9,10,11]:
+            nodes = list(range(n))
+        else:
+            nodes = random.sample(range(n),100)
+       
+        m = 0
+        
+        for j in nodes:
+            model = lstm_model()
+            scaler = MinMaxScaler(feature_range=(0, 1))
+            trainX,testX,trainY,testY = create_dataset(i+1,j,scaler)
+
+            model.fit(trainX, trainY,epochs = 3, batch_size = 1, verbose = 2)    
+            trainPredict = model.predict(trainX)
+            testPredict = model.predict(testX)    
+            trainPredict = scaler.inverse_transform(trainPredict)
+            trainY = scaler.inverse_transform([trainY])
+            testPredict = scaler.inverse_transform(testPredict)
+            testY = scaler.inverse_transform([testY])
+            
+            
+            
+            
+            m+=1
+            print('ts number:',i+1,j+1,', number ts trained:',m)
+    
+            preddf[str(i+1)+'_'+ str(j+1)] = (np.array(testPredict.squeeze()))
+            
+            preddf.to_csv("results/lstm_predictions.csv")
+            err = RMSSE(testPredict.squeeze(),
+                         pd.Series(testY.squeeze()),pd.Series(trainY.squeeze()))
+            
+            prederr[str(i+1)+'_'+ str(j+1)] = [err]
+            
+            prederr.to_csv("results/lstm_errors.csv")
+            print(err)
+
+        en = time.time()
+        
+        print(f'level {i+1} finished, It took, {(en-st)/60} mins')
+        #print('test x shape',testX.shape,testY.shape)
 
 
-
-
-
+train_lstm()
 
 
 
