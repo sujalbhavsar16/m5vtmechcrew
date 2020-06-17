@@ -88,9 +88,36 @@ import tensorflow as tf
 #........................getting predictions................................
 
 n_beat_model=next(os.walk('n_beat_models'))[2]
+n_beat_model=n_beat_model[::-1]
 # print
 print(len(n_beat_model))
-test=False
+path1 = 'Data2 '
+path2 = 'sales_train_validation.csv'
+path3 = 'calendar.csv'
+path4 = 'sell_prices.csv'
+sale = pd.read_csv('Data2/sales_train_evaluation.csv')
+calendar = pd.read_csv('Data2/calendar.csv')
+price = pd.read_csv('Data2/sell_prices.csv')
+# levels=lc.LevelsCreater()
+# df = levels.get_level(sale, level)
+# df = df.transpose()
+# df = pd.DataFrame(df[df.columns[node]])
+ex = exovar.exovar()
+
+def dicofnode(s_prediction):
+    s_prediction[s_prediction[s_prediction.columns[0]] == 1].index
+    groupts = {}
+    for i in range(100):
+        groupts['cluster_' + str(i)] = s_prediction[s_prediction[s_prediction.columns[0]] == i].index.ravel()
+    return groupts
+def get_key(val,groupts):
+    for key,value in groupts.items():
+        if val in [x for x in value]:
+            return key
+
+
+
+test=True
 if test==True:
     length=[0,1,2,3]
     horizon=range(5)
@@ -100,25 +127,48 @@ else:
 
 s_prediction=pd.DataFrame()
 for i in length:
-
+    print(n_beat_model[i])
     node=int(n_beat_model[i][:-3].split('_')[-1])
     level=int(n_beat_model[i][:-3].split('_')[-2])
     print('Level:',level)
     print('node:',node)
 
-    path1 = 'Data2 '
-    path2 = 'sales_train_validation.csv'
-    path3 = 'calendar.csv'
-    path4='sell_prices.csv'
-    sale = pd.read_csv('Data2/sales_train_evaluation.csv')
-    calendar = pd.read_csv('Data2/calendar.csv')
-    price = pd.read_csv('Data2/sell_prices.csv')
-    # levels=lc.LevelsCreater()
-    # df = levels.get_level(sale, level)
-    # df = df.transpose()
-    # df = pd.DataFrame(df[df.columns[node]])
-    ex = exovar.exovar()
+
+
     #......................update ts_level and run in for loop aha............#
+    model = NBeatsNet.load(os.path.join('n_beat_models', n_beat_model[0]))
+    if level==12:
+        clus_pred = pd.read_csv('Results/clusterprediction_lv12.csv', index_col=0)
+        groupts=dicofnode(clus_pred)
+        othernode=groupts[get_key(node,groupts)]
+
+        for node in othernode:
+            print('node:',node)
+            an = []
+            ts_level = lc.LevelsCreater().get_level(sale, level)
+            for h in horizon:
+                print('horizon-', h)
+                # print(ts_level.shape)
+                salecal = ex.salecal(ts_level, calendar, node)
+                if level == 1:
+                    salecal = salecal.rename(columns={salecal.columns[0]: 'zero'})
+                print(salecal.shape)
+                x = salecal[salecal.columns[0]].values[-30:].reshape(1, 30, 1)
+                x = tf.cast(x, tf.float32)
+                e = salecal[salecal.columns[1:]].values[-30:].reshape(1, 30, len(salecal.columns[1:]))
+                e = tf.cast(e, tf.float32)
+
+                prediction = model.predict([x, e])
+                # print(prediction.shape)
+                # print(prediction.ravel().shape)
+
+                ts_level['d_' + str(int(ts_level.columns[-1].split('_')[1]) + 1)] = np.zeros(get_max_node(level))
+                ts_level.iloc[node, -1] = int(prediction.ravel())
+                an.append(int(prediction.ravel()))
+            s_prediction[str(level) + '_' + str(node)] = an
+            s_prediction.to_csv('Results/s_prediction.csv')
+
+
     an=[]
     ts_level = lc.LevelsCreater().get_level(sale, level)
     for h in horizon:
@@ -133,7 +183,7 @@ for i in length:
         e=salecal[salecal.columns[1:]].values[-30:].reshape(1,30,len(salecal.columns[1:]))
         e= tf.cast(e,tf.float32)
 
-        model = NBeatsNet.load(os.path.join('n_beat_models',n_beat_model[0]))
+
 
         prediction = model.predict([x,e])
         # print(prediction.shape)
@@ -143,7 +193,6 @@ for i in length:
         ts_level.iloc[node,-1]=int(prediction.ravel())
         an.append(int(prediction.ravel()))
     s_prediction[str(level)+'_'+str(node)]=an
-
+    s_prediction.to_csv('Results/s_prediction.csv')
 # print(ts_level)
 # print(s_prediction)
-s_prediction.to_csv('Results/s_prediction.csv')
