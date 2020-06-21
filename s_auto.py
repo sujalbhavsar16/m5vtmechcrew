@@ -117,7 +117,7 @@ def get_key(val,groupts):
 
 
 
-test=True
+test=False
 if test==True:
     length=[0,1,2,3]
     horizon=range(5)
@@ -137,8 +137,10 @@ for i in length:
 
     #......................update ts_level and run in for loop aha............#
     model = NBeatsNet.load(os.path.join('n_beat_models', n_beat_model[0]))
-    if level==12:
-        clus_pred = pd.read_csv('Results/clusterprediction_lv12.csv', index_col=0)
+    if level==12 or level==11:
+        pass
+    elif level==10:
+        clus_pred = pd.read_csv('Results/clusterprediction_lv{level:d}.csv'.format(level=level), index_col=0)
         groupts=dicofnode(clus_pred)
         othernode=groupts[get_key(node,groupts)]
 
@@ -168,31 +170,32 @@ for i in length:
             s_prediction[str(level) + '_' + str(node)] = an
             s_prediction.to_csv('Results/s_prediction.csv')
 
+    else:
 
-    an=[]
-    ts_level = lc.LevelsCreater().get_level(sale, level)
-    for h in horizon:
-        print('horizon-',h)
-        # print(ts_level.shape)
-        salecal = ex.salecal(ts_level, calendar, node)
-        if level==1:
-            salecal=salecal.rename(columns={salecal.columns[0]:'zero'})
-        print(salecal.shape)
-        x=salecal[salecal.columns[0]].values[-30:].reshape(1,30,1)
-        x= tf.cast(x,tf.float32)
-        e=salecal[salecal.columns[1:]].values[-30:].reshape(1,30,len(salecal.columns[1:]))
-        e= tf.cast(e,tf.float32)
+        an=[]
+        ts_level = lc.LevelsCreater().get_level(sale, level)
+        for h in horizon:
+            print('horizon-',h)
+            # print(ts_level.shape)
+            salecal = ex.salecal(ts_level, calendar, node)
+            if level==1:
+                salecal=salecal.rename(columns={salecal.columns[0]:'zero'})
+            print(salecal.shape)
+            x=salecal[salecal.columns[0]].values[-30:].reshape(1,30,1)
+            x= tf.cast(x,tf.float32)
+            e=salecal[salecal.columns[1:]].values[-30:].reshape(1,30,len(salecal.columns[1:]))
+            e= tf.cast(e,tf.float32)
 
 
 
-        prediction = model.predict([x,e])
-        # print(prediction.shape)
-        # print(prediction.ravel().shape)
+            prediction = model.predict([x,e])
+            # print(prediction.shape)
+            # print(prediction.ravel().shape)
 
-        ts_level['d_'+str(int(ts_level.columns[-1].split('_')[1])+1)]=np.zeros(get_max_node(level))
-        ts_level.iloc[node,-1]=int(prediction.ravel())
-        an.append(int(prediction.ravel()))
-    s_prediction[str(level)+'_'+str(node)]=an
-    s_prediction.to_csv('Results/s_prediction.csv')
-# print(ts_level)
+            ts_level['d_'+str(int(ts_level.columns[-1].split('_')[1])+1)]=np.zeros(get_max_node(level))
+            ts_level.iloc[node,-1]=int(prediction.ravel())
+            an.append(int(prediction.ravel()))
+        s_prediction[str(level)+'_'+str(node)]=an
+        s_prediction.to_csv('Results/s_prediction.csv')
+    # print(ts_level)
 # print(s_prediction)
