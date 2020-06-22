@@ -170,7 +170,7 @@ def train_lstm():
             
             prederr.to_csv("results/lstm_errors.csv")
             print(err)
-
+            model.save('lstm_models/'+str(i+1)+'_'+ str(j+1)+'.h5')
         en = time.time()
         
         print(f'level {i+1} finished, It took, {(en-st)/60} mins')
