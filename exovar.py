@@ -1,3 +1,4 @@
+
 class exovar:
     def __init__(self):
         pass
@@ -37,6 +38,27 @@ class exovar:
         store_level_final = sale_data.merge(calendar_data, on='d')
         new_store_level = store_level_final.drop(['d', 'date'], axis=1)
         return new_store_level
+
+    def get_exog(self,level,node):
+        import LevelsCreater as lc
+        lc = lc.LevelsCreater()
+        import pandas as pd
+        import os
+        a = 'Data'
+        b = 'sales_train_validation.csv'
+        sale = pd.read_csv(os.path.join(a, b))
+
+        salen = pd.melt(sale, id_vars=['id', 'item_id', 'dept_id', 'cat_id', 'store_id', 'state_id'], var_name='day',
+                        value_name='demand')
+        calendar = pd.read_csv(os.path.join('Data', 'calendar.csv'))
+        data = pd.merge(salen, calendar, how='left', left_on=['day'], right_on=['d'])
+        sell_price = pd.read_csv(os.path.join('Data', 'sell_prices.csv'))
+        data = data.merge(sell_price, on=['store_id', 'item_id', 'wm_yr_wk'], how='left')
+        salecaldf=self.salecal(lc.get_level(sale,level),calendar,node)
+        newdata = data.loc[(data['item_id'] == 'FOODS_1_001') & (data['store_id'].str.match('TX'))]
+        newdata = newdata.groupby(['d'], sort=False).sum()
+        salecaldf['sell_price']=newdata['sell_price']
+        return salecaldf
 
     def salcaltwo(self,sale_data,calendar_data,price_data,node):
         # CAL_DTYPES = {"event_name_1": "category", "event_name_2": "category", "event_type_1": "category",

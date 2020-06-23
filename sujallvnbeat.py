@@ -29,6 +29,7 @@ from more_itertools import one
 from scipy import stats
 from functions import  series_to_supervised, mean_absolute_percentage_error, RMSSE,series_to_supervised
 import exovar
+from statsmodels.tsa.seasonal import seasonal_decompose
 
 # levels=lc.LevelsCreater()
 #
@@ -304,49 +305,96 @@ import exovar
 def s_nbeat(level=1,exo=False,node=0,normalized=False,n_in=30,n_out=1,batch_size=128,optimizer='adam', loss='mse',test=200,epochs=500,decomposition=False):
     if exo==True:
 
-        path1 = 'Data'
-        path2 = 'sales_train_validation.csv'
+        path1 = 'Data2 '
+        path2 = 'sales_train_evaluation.csv'
         path3 = 'calendar.csv'
-        sale = pd.read_csv(os.path.join(path1, path2), delimiter=",")
-        calendar = pd.read_csv(os.path.join(path1, path3))
+        path4='sell_prices.csv'
+        sale = pd.read_csv('Data2/sales_train_evaluation.csv')
+        calendar = pd.read_csv('Data2/calendar.csv')
+        price = pd.read_csv('Data2/sell_prices.csv')
         levels=lc.LevelsCreater()
         df = levels.get_level(sale, level)
         df = df.transpose()
         df = pd.DataFrame(df[df.columns[node]])
         ex = exovar.exovar()
         ts_level = lc.LevelsCreater().get_level(sale, level)
-        salecal = ex.salecal(ts_level, calendar, node)
+        salecal=ex.salecal(ts_level,calendar,node)
+        # salecal = ex.salcaltwo(ts_level, calendar,price, node)
         if level==1:
             salecal=salecal.rename(columns={salecal.columns[0]:'zero'})
         print(salecal.shape)
-        bigx=series_to_supervised(salecal,n_in,n_out,parse=False,dropnan=True)
-        # x, y, e = series_to_supervised(salecal, n_in, n_out, dropnan=True, parse=False)
-        y_columsn = str(salecal.columns[0]) + '(t)'
-        look_back_columns = list(set([i for i in bigx.columns if str(salecal.columns[0]) in i]) - set([y_columsn]))
-        # look_back_columns.remove(y_columsn)
-        exo_column = [i for i in bigx.columns if '(t)' not in i and i not in look_back_columns]
-        x,y,e=bigx[look_back_columns],bigx[y_columsn],bigx[exo_column]
-        print(x.columns)
-        print(e.columns)
-        print(y.shape)
-        x = x.values.reshape(salecal.shape[0]-n_in , n_in, 1)
-        y = y.values.reshape(salecal.shape[0]-n_in , 1, 1)
-        e = e.values.reshape(salecal.shape[0]-n_in , n_in, 12)
-        # x = x.values.reshape(x.shape[0], n_in, 1)
-        # y = y.values.reshape(y.shape[0], 1, 1)
-        # e = e.values.reshape(e.shape[0], n_in, 12)
-        num_samples, time_steps, input_dim, output_dim, exo_dim = x.shape[0] , n_in, 1, 1, 12
-        model = NBeatsNet(exo_dim=exo_dim, backcast_length=time_steps, forecast_length=output_dim,
-                          stack_types=(NBeatsNet.GENERIC_BLOCK, NBeatsNet.GENERIC_BLOCK), nb_blocks_per_stack=2,
-                          thetas_dim=(4, 4), share_weights_in_stack=True, hidden_layer_units=64)
-        model.compile_model(loss='mae', learning_rate=1e-5)
-        c = test
-        x_train, y_train, x_test, y_test, e_train, e_test = x[:-c], y[:-c], x[-c:], y[-c:], e[:-c], e[-c:]
-        model.fit([x_train, e_train], y_train, validation_data=([x_test, e_test], y_test), epochs=epochs, batch_size=batch_size)
-        predictions = model.predict([x_test, e_test])
-        print(predictions.shape)
-        print(y_test.shape)
-    model.save('n_beat_models/n_beats_model_{:02}_{:02}.h5'.format(level,node))
+        if decomposition==False:
+
+            bigx=series_to_supervised(salecal,n_in,n_out,parse=False,dropnan=True)
+            # x, y, e = series_to_supervised(salecal, n_in, n_out, dropnan=True, parse=False)
+            y_columsn = str(salecal.columns[0]) + '(t)'
+            look_back_columns = list(set([i for i in bigx.columns if str(salecal.columns[0]) in i]) - set([y_columsn]))
+            # look_back_columns.remove(y_columsn)
+            exo_column = [i for i in bigx.columns if '(t)' not in i and i not in look_back_columns]
+            x,y,e=bigx[look_back_columns],bigx[y_columsn],bigx[exo_column]
+            print(x.columns)
+            print(e.columns)
+            print(y.shape)
+            x = x.values.reshape(salecal.shape[0]-n_in , n_in, 1)
+            y = y.values.reshape(salecal.shape[0]-n_in , 1, 1)
+            e = e.values.reshape(salecal.shape[0]-n_in , n_in, 12)
+            # x = x.values.reshape(x.shape[0], n_in, 1)
+            # y = y.values.reshape(y.shape[0], 1, 1)
+            # e = e.values.reshape(e.shape[0], n_in, 12)
+            num_samples, time_steps, input_dim, output_dim, exo_dim = x.shape[0] , n_in, 1, 1, 12
+            model = NBeatsNet(exo_dim=exo_dim, backcast_length=time_steps, forecast_length=output_dim,
+                              stack_types=(NBeatsNet.GENERIC_BLOCK, NBeatsNet.GENERIC_BLOCK), nb_blocks_per_stack=2,
+                              thetas_dim=(4, 4), share_weights_in_stack=True, hidden_layer_units=64)
+            model.compile_model(loss='mae', learning_rate=1e-5)
+            c = test
+            x_train, y_train, x_test, y_test, e_train, e_test = x[:-c], y[:-c], x[-c:], y[-c:], e[:-c], e[-c:]
+            model.fit([x_train, e_train], y_train, validation_data=([x_test, e_test], y_test), epochs=epochs, batch_size=batch_size)
+            predictions = model.predict([x_test, e_test])
+            print(predictions.shape)
+            print(y_test.shape)
+            model.save('n_beat_models/n_beats_model_{:02}_{:02}.h5'.format(level,node))
+        elif decomposition==True:
+            res = seasonal_decompose(salecal[salecal.columns[0]].values, model='additive', period=1)
+            #................copypastefrom ntc...................
+            res = [res.resid, res.seasonal, res.trend]
+            ytot = []
+            for dff,component in zip(res,['resid','seasonal','trend']):
+                print('dealing with decompositioin')
+                dff = pd.DataFrame(dff)
+                salecal[salecal.columns[0]] = dff
+                bigx = series_to_supervised(salecal, n_in, n_out, parse=False, dropnan=True)
+                y_columsn = str(salecal.columns[0]) + '(t)'
+                look_back_columns = list(
+                    set([i for i in bigx.columns if str(salecal.columns[0]) in i]) - set([y_columsn]))
+                # look_back_columns.remove(y_columsn)
+                exo_column = [i for i in bigx.columns if '(t)' not in i and i not in look_back_columns]
+                x, y, e = bigx[look_back_columns], bigx[y_columsn], bigx[exo_column]
+                print(x.columns)
+                print(e.columns)
+                print(y.shape)
+                x = x.values.reshape(salecal.shape[0] - n_in, n_in, 1)
+                y = y.values.reshape(salecal.shape[0] - n_in, 1, 1)
+                e = e.values.reshape(salecal.shape[0] - n_in, n_in, 12)
+                # x = x.values.reshape(x.shape[0], n_in, 1)
+                # y = y.values.reshape(y.shape[0], 1, 1)
+                # e = e.values.reshape(e.shape[0], n_in, 12)
+                num_samples, time_steps, input_dim, output_dim, exo_dim = x.shape[0], n_in, 1, 1, 12
+                model = NBeatsNet(exo_dim=exo_dim, backcast_length=time_steps, forecast_length=output_dim,
+                                  stack_types=(NBeatsNet.GENERIC_BLOCK, NBeatsNet.GENERIC_BLOCK), nb_blocks_per_stack=2,
+                                  thetas_dim=(4, 4), share_weights_in_stack=True, hidden_layer_units=64)
+                model.compile_model(loss='mae', learning_rate=1e-5)
+                c = test
+                x_train, y_train, x_test, y_test, e_train, e_test = x[:-c], y[:-c], x[-c:], y[-c:], e[:-c], e[-c:]
+                model.fit([x_train, e_train], y_train, validation_data=([x_test, e_test], y_test), epochs=epochs,
+                          batch_size=batch_size)
+                predictions = model.predict([x_test, e_test])
+                print(predictions.shape)
+                print(y_test.shape)
+                model.save('n_beat_models/n_beats_model_{:02}_{:02}_{}.h5'.format(level, node,component))
+                ytot.append(predictions)
+            predictions = np.sum(ytot, axis=0)
+            #......................
+
     return mean_absolute_percentage_error(predictions, y_test), LA.norm(predictions - y_test, 2,axis=0), RMSSE(predictions,
                                                                                                         y_test,
                                                                                                         df.values)

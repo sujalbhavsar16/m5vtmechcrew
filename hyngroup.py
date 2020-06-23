@@ -29,6 +29,6 @@ for grpid in grpid:
 # print(grpdf.iloc[0,21342:21345])
 # print(set(grpdf.iloc[0]))
 
-
+grpdf.to_csv('Results/hyndmandf.csv')
 
 print(set(grpdf.iloc[9]))

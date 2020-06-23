@@ -18,11 +18,19 @@ from sklearn import metrics
 
 
 # In[13]:
+from exovar import exovar
 
-
-class LevelsCreater:
+class LevelsCreater(exovar):
     def __init__(self):
-        pass
+        super(LevelsCreater,self).__init__()
+        self.sale = pd.read_csv(os.path.join('Data', 'sales_train_validation.csv'))
+        self.salen = pd.melt(self.sale, id_vars=['id', 'item_id', 'dept_id', 'cat_id', 'store_id', 'state_id'],
+                             var_name='day', value_name='demand')
+        self.calendar = pd.read_csv(os.path.join('Data', 'calendar.csv'))
+
+        self.data = pd.merge(self.salen, self.calendar, how='left', left_on=['day'], right_on=['d'])
+        self.sell_price = pd.read_csv(os.path.join('Data', 'sell_prices.csv'))
+        self.data = self.data.merge(self.sell_price, on=['store_id', 'item_id', 'wm_yr_wk'], how='left')
     def get_level(self,sales_data,level):
         if level==11:
             df = sales_data.groupby(['item_id', 'state_id'], as_index=False).sum()
@@ -70,7 +78,33 @@ class LevelsCreater:
             df=sales_data[[t for t in sales_data.columns if 'd_' in t]]
             
         return df
-    
+
+    def get_price(self,level):
+        # def __init__(self):
+            # self.sale=pd.read_csv(os.path.join('Data','sales_train_validation.csv'))
+            # self.salen = pd.melt(self.sale, id_vars=['id', 'item_id', 'dept_id', 'cat_id', 'store_id', 'state_id'],
+            #                 var_name='day', value_name='demand')
+            # self.calendar = pd.read_csv(os.path.join('Data', 'calendar.csv'))
+            #
+            # self.data = pd.merge(self.salen, self.calendar, how='left', left_on=['day'], right_on=['d'])
+            # self.sell_price = pd.read_csv(os.path.join('Data', 'sell_prices.csv'))
+            # self.data=self.data.merge(self.sell_price, on = ['store_id', 'item_id', 'wm_yr_wk'], how = 'left')
+        # if level==1:
+        sale = pd.read_csv(os.path.join('Data', 'sales_train_validation.csv'))
+        calendar = pd.read_csv(os.path.join('Data', 'calendar.csv'))
+        if level==11:
+            salecal=exovar.salecal(self.get_level(sale,11),calendar,1)
+            # a=salecal.columns[0][:-3]
+            # b=salecal.columns[0][-2:]
+
+            # newdata = self.data.loc[(self.data['item_id'] == a) & (self.data['store_id'].str.match(b))]
+            # return newdata.groupby(['d'],sort=False).sum()
+            return salecal
+        # elif level==2:
+
+
+
+
     def level_11(self,sales_data):
         df = sales_data.groupby(['item_id', 'state_id'], as_index=False).sum()
         return df.set_index(df.columns[0])
