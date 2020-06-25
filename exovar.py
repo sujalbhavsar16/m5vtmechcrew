@@ -21,6 +21,7 @@ class exovar:
 
 
     def salecal(self,sale_data,calendar_data,node=1):
+        import pandas as pd
         CAL_DTYPES = {"event_name_1": "category", "event_name_2": "category", "event_type_1": "category",
                       "event_type_2": "category", "weekday": "category", 'wm_yr_wk': 'int16', "wday": "int16",
                       "month": "int16", "year": "int16", "snap_CA": "float32", 'snap_TX': 'float32',
@@ -35,8 +36,27 @@ class exovar:
                 calendar_data[col_name] -= calendar_data[col_name].min()
         sale_data=sale_data.T[[sale_data.T.columns[node]]]
         sale_data.index.name = 'd'
+
+        def change_columns(clist, add):
+            c = []
+            for i in range(len(clist)):
+                c.append(add + '_' + str(clist[i]))
+            return c
+        calendar_data=calendar_data.set_index('date')
+        new_exocal = calendar_data.drop(calendar_data.columns[6:], axis=1, inplace=False)
+        iter = 6
+        for _ in (calendar_data.columns[6:]):
+            it = pd.get_dummies(calendar_data[calendar_data.columns[iter]], dtype=float)
+            it.columns = change_columns(it.columns, calendar_data.columns[iter])
+            new_exocal = new_exocal.join(it)
+            iter += 1
+
+        calendar_data=new_exocal
+
+
         store_level_final = sale_data.merge(calendar_data, on='d')
-        new_store_level = store_level_final.drop(['d', 'date'], axis=1)
+        # new_store_level = store_level_final.drop(['d', 'date'], axis=1)
+        new_store_level = store_level_final.drop(['d'], axis=1)
         return new_store_level
 
     def get_exog(self,level,node):
