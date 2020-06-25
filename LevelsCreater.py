@@ -23,14 +23,14 @@ from exovar import exovar
 class LevelsCreater(exovar):
     def __init__(self):
         super(LevelsCreater,self).__init__()
-        self.sale = pd.read_csv(os.path.join('Data', 'sales_train_validation.csv'))
-        self.salen = pd.melt(self.sale, id_vars=['id', 'item_id', 'dept_id', 'cat_id', 'store_id', 'state_id'],
-                             var_name='day', value_name='demand')
-        self.calendar = pd.read_csv(os.path.join('Data', 'calendar.csv'))
-
-        self.data = pd.merge(self.salen, self.calendar, how='left', left_on=['day'], right_on=['d'])
-        self.sell_price = pd.read_csv(os.path.join('Data', 'sell_prices.csv'))
-        self.data = self.data.merge(self.sell_price, on=['store_id', 'item_id', 'wm_yr_wk'], how='left')
+        # self.sale = pd.read_csv(os.path.join('Data', 'sales_train_validation.csv'))
+        # self.salen = pd.melt(self.sale, id_vars=['id', 'item_id', 'dept_id', 'cat_id', 'store_id', 'state_id'],
+        #                      var_name='day', value_name='demand')
+        # self.calendar = pd.read_csv(os.path.join('Data', 'calendar.csv'))
+        #
+        # self.data = pd.merge(self.salen, self.calendar, how='left', left_on=['day'], right_on=['d'])
+        # self.sell_price = pd.read_csv(os.path.join('Data', 'sell_prices.csv'))
+        # self.data = self.data.merge(self.sell_price, on=['store_id', 'item_id', 'wm_yr_wk'], how='left')
     def get_level(self,sales_data,level):
         if level==11:
             df = sales_data.groupby(['item_id', 'state_id'], as_index=False).sum()
